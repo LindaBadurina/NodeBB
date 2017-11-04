@@ -127,7 +127,7 @@ Configs.setOnEmpty = function (values, callback) {
 			db.getObject('config', next);
 		},
 		function (data, next) {
-			var config = Object.assign({}, values, data);
+			var config = Object.assign({}, values, deserialize(data || {}));
 			db.setObject('config', serialize(config), next);
 		},
 	], callback);
