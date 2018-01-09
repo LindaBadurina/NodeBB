@@ -83,6 +83,8 @@ var aliases = {
 	sounds: ['sound'],
 };
 
+exports.aliases = aliases;
+
 aliases = Object.keys(aliases).reduce(function (prev, key) {
 	var arr = aliases[key];
 	arr.forEach(function (alias) {
@@ -96,6 +98,8 @@ function beforeBuild(targets, callback) {
 	var db = require('../database');
 	var plugins = require('../plugins');
 	meta = require('../meta');
+
+	process.stdout.write('  started'.green + '\n'.reset);
 
 	async.series([
 		db.init,

@@ -179,12 +179,15 @@ module.exports = function (Topics) {
 								async.apply(db.sortedSetAdd, 'cid:' + topicData.cid + ':tids:pinned', Date.now(), tid),
 								async.apply(db.sortedSetRemove, 'cid:' + topicData.cid + ':tids', tid),
 								async.apply(db.sortedSetRemove, 'cid:' + topicData.cid + ':tids:posts', tid),
+								async.apply(db.sortedSetRemove, 'cid:' + topicData.cid + ':tids:votes', tid),
 							], next);
 						} else {
+							var votes = (parseInt(topicData.upvotes, 10) || 0) - (parseInt(topicData.downvotes, 10) || 0);
 							async.parallel([
 								async.apply(db.sortedSetRemove, 'cid:' + topicData.cid + ':tids:pinned', tid),
 								async.apply(db.sortedSetAdd, 'cid:' + topicData.cid + ':tids', topicData.lastposttime, tid),
 								async.apply(db.sortedSetAdd, 'cid:' + topicData.cid + ':tids:posts', topicData.postcount, tid),
+								async.apply(db.sortedSetAdd, 'cid:' + topicData.cid + ':tids:votes', votes, tid),
 							], next);
 						}
 					},
@@ -247,6 +250,7 @@ module.exports = function (Topics) {
 		var topic;
 		var oldCid;
 		var cid = data.cid;
+
 		async.waterfall([
 			function (next) {
 				Topics.exists(tid, next);
@@ -255,14 +259,18 @@ module.exports = function (Topics) {
 				if (!exists) {
 					return next(new Error('[[error:no-topic]]'));
 				}
-				Topics.getTopicFields(tid, ['cid', 'lastposttime', 'pinned', 'deleted', 'postcount'], next);
+				Topics.getTopicFields(tid, ['cid', 'lastposttime', 'pinned', 'deleted', 'postcount', 'upvotes', 'downvotes'], next);
 			},
 			function (topicData, next) {
 				topic = topicData;
+				if (parseInt(cid, 10) === parseInt(topic.cid, 10)) {
+					return next(new Error('[[error:cant-move-topic-to-same-category]]'));
+				}
 				db.sortedSetsRemove([
 					'cid:' + topicData.cid + ':tids',
 					'cid:' + topicData.cid + ':tids:pinned',
 					'cid:' + topicData.cid + ':tids:posts',
+					'cid:' + topicData.cid + ':tids:votes',
 					'cid:' + topicData.cid + ':tids:lastposttime',
 					'cid:' + topicData.cid + ':recent_tids',
 				], tid, next);
@@ -281,6 +289,10 @@ module.exports = function (Topics) {
 						function (next) {
 							topic.postcount = topic.postcount || 0;
 							db.sortedSetAdd('cid:' + cid + ':tids:posts', topic.postcount, tid, next);
+						},
+						function (next) {
+							var votes = (parseInt(topic.upvotes, 10) || 0) - (parseInt(topic.downvotes, 10) || 0);
+							db.sortedSetAdd('cid:' + cid + ':tids:votes', votes, tid, next);
 						},
 					], function (err) {
 						next(err);

@@ -139,6 +139,11 @@ Digest.send = function (data, callback) {
 							notifications: notifications,
 							recent: data.topics,
 							interval: data.interval,
+							showUnsubscribe: true,
+						}, function (err) {
+							if (err) {
+								winston.error('[user/jobs] Could not send digest email', err);
+							}
 						});
 						next();
 					},

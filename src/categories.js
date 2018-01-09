@@ -153,10 +153,10 @@ Categories.getCategories = function (cids, uid, callback) {
 			uid = parseInt(uid, 10);
 			results.categories.forEach(function (category, i) {
 				if (category) {
-					category['unread-class'] = (parseInt(category.topic_count, 10) === 0 || (results.hasRead[i] && uid !== 0)) ? '' : 'unread';
 					category.children = results.children[i];
 					category.parent = results.parents[i] || undefined;
 					category.tagWhitelist = results.tagWhitelist[i];
+					category['unread-class'] = (parseInt(category.topic_count, 10) === 0 || (results.hasRead[i] && uid !== 0)) ? '' : 'unread';
 					calculateTopicPostCount(category);
 				}
 			});
@@ -259,9 +259,25 @@ function getChildrenRecursive(category, uid, callback) {
 			}
 			Categories.getCategoriesData(children, next);
 		},
-		function (childrenData, next) {
-			childrenData = childrenData.filter(Boolean);
-			category.children = childrenData;
+		function (children, next) {
+			children = children.filter(Boolean);
+			category.children = children;
+
+			var cids = children.map(function (child) {
+				return child.cid;
+			});
+
+			Categories.hasReadCategories(cids, uid, next);
+		},
+		function (hasRead, next) {
+			hasRead.forEach(function (read, i) {
+				var child = category.children[i];
+				child['unread-class'] = (parseInt(child.topic_count, 10) === 0 || (read && uid !== 0)) ? '' : 'unread';
+			});
+
+			next();
+		},
+		function (next) {
 			async.each(category.children, function (child, next) {
 				getChildrenRecursive(child, uid, next);
 			}, next);
@@ -322,7 +338,7 @@ Categories.buildForSelect = function (uid, privilege, callback) {
 };
 
 Categories.buildForSelectCategories = function (categories, callback) {
-	function recursive(category, categoriesData, level) {
+	function recursive(category, categoriesData, level, depth) {
 		if (category.link) {
 			return;
 		}
@@ -331,10 +347,11 @@ Categories.buildForSelectCategories = function (categories, callback) {
 		category.value = category.cid;
 		category.level = level;
 		category.text = level + bullet + category.name;
+		category.depth = depth;
 		categoriesData.push(category);
 
 		category.children.forEach(function (child) {
-			recursive(child, categoriesData, '&nbsp;&nbsp;&nbsp;&nbsp;' + level);
+			recursive(child, categoriesData, '&nbsp;&nbsp;&nbsp;&nbsp;' + level, depth + 1);
 		});
 	}
 
@@ -345,7 +362,7 @@ Categories.buildForSelectCategories = function (categories, callback) {
 	});
 
 	categories.forEach(function (category) {
-		recursive(category, categoriesData, '');
+		recursive(category, categoriesData, '', 0);
 	});
 	callback(null, categoriesData);
 };

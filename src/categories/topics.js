@@ -90,7 +90,10 @@ module.exports = function (Categories) {
 				var stop = data.stop === -1 ? data.stop : start + normalTidsToGet - 1;
 
 				if (Array.isArray(set)) {
-					db[direction === 'highest-to-lowest' ? 'getSortedSetRevIntersect' : 'getSortedSetIntersect']({ sets: set, start: start, stop: stop }, next);
+					var weights = set.map(function (s, index) {
+						return index ? 0 : 1;
+					});
+					db[direction === 'highest-to-lowest' ? 'getSortedSetRevIntersect' : 'getSortedSetIntersect']({ sets: set, start: start, stop: stop, weights: weights }, next);
 				} else {
 					db[direction === 'highest-to-lowest' ? 'getSortedSetRevRange' : 'getSortedSetRange'](set, start, stop, next);
 				}
@@ -135,6 +138,8 @@ module.exports = function (Categories) {
 
 		if (sort === 'most_posts') {
 			set = 'cid:' + cid + ':tids:posts';
+		} else if (sort === 'most_votes') {
+			set = 'cid:' + cid + ':tids:votes';
 		}
 
 		if (data.targetUid) {
@@ -160,7 +165,7 @@ module.exports = function (Categories) {
 
 	Categories.getSortedSetRangeDirection = function (sort, callback) {
 		sort = sort || 'newest_to_oldest';
-		var direction = sort === 'newest_to_oldest' || sort === 'most_posts' ? 'highest-to-lowest' : 'lowest-to-highest';
+		var direction = sort === 'newest_to_oldest' || sort === 'most_posts' || sort === 'most_votes' ? 'highest-to-lowest' : 'lowest-to-highest';
 		plugins.fireHook('filter:categories.getSortedSetRangeDirection', {
 			sort: sort,
 			direction: direction,
